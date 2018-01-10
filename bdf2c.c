@@ -229,58 +229,59 @@ void DumpCharacter(FILE * out, unsigned char *bitmap, int fontwidth, int fonthei
     int yoffset = fontheight - charheight + (fontyoffset - charyoffset);
 
     for (y = 0; y < fontheight; ++y) {
-	fputc('\t', out);
-	for (x = 0; x < fontwidth; x += 8) {
-        // if current row is above or below the bitmap, output a blank row
-        if(y < yoffset || y > yoffset + charheight)
-            c = 0;
-        else
-            c = bitmap[(y - yoffset) * ((fontwidth + 7) / 8) + x / 8];
+        fputc('\t', out);
+        for (x = 0; x < fontwidth; x += 8) {
+            // if current row is above or below the bitmap, output a blank row
+            if(y < yoffset || y > yoffset + charheight) {
+                c = 0;
+            } else {
+                c = bitmap[(y - yoffset) * ((fontwidth + 7) / 8) + x / 8];
+            }
 
-	    //printf("%d = %d\n", y * ((width+7)/8) + x/8, c);
-	    if (c & 0x80) {
-		fputc('X', out);
-	    } else {
-		fputc('_', out);
-	    }
-	    if (c & 0x40) {
-		fputc('X', out);
-	    } else {
-		fputc('_', out);
-	    }
-	    if (c & 0x20) {
-		fputc('X', out);
-	    } else {
-		fputc('_', out);
-	    }
-	    if (c & 0x10) {
-		fputc('X', out);
-	    } else {
-		fputc('_', out);
-	    }
-	    if (c & 0x08) {
-		fputc('X', out);
-	    } else {
-		fputc('_', out);
-	    }
-	    if (c & 0x04) {
-		fputc('X', out);
-	    } else {
-		fputc('_', out);
-	    }
-	    if (c & 0x02) {
-		fputc('X', out);
-	    } else {
-		fputc('_', out);
-	    }
-	    if (c & 0x01) {
-		fputc('X', out);
-	    } else {
-		fputc('_', out);
-	    }
-	    fputc(',', out);
-	}
-	fputc('\n', out);
+            //printf("%d = %d\n", y * ((width+7)/8) + x/8, c);
+            if (c & 0x80) {
+                fputc('X', out);
+            } else {
+                fputc('_', out);
+            }
+            if (c & 0x40) {
+                fputc('X', out);
+            } else {
+                fputc('_', out);
+            }
+            if (c & 0x20) {
+                fputc('X', out);
+            } else {
+                fputc('_', out);
+            }
+            if (c & 0x10) {
+                fputc('X', out);
+            } else {
+                fputc('_', out);
+            }
+            if (c & 0x08) {
+                fputc('X', out);
+            } else {
+                fputc('_', out);
+            }
+            if (c & 0x04) {
+                fputc('X', out);
+            } else {
+                fputc('_', out);
+            }
+            if (c & 0x02) {
+                fputc('X', out);
+            } else {
+                fputc('_', out);
+            }
+            if (c & 0x01) {
+                fputc('X', out);
+            } else {
+                fputc('_', out);
+            }
+            fputc(',', out);
+        }
+        fputc('\n', out);
     }
 }
 
@@ -417,73 +418,76 @@ void ReadBdf(FILE * bdf, FILE * out, const char *name)
     fontboundingbox_xoff = 0;
     fontboundingbox_yoff = 0;
     chars = 0;
+
     for (;;) {
-	if (!fgets(linebuf, sizeof(linebuf), bdf)) {	// EOF
-	    break;
-	}
-	if (!(s = strtok(linebuf, " \t\n\r"))) {	// empty line
-	    break;
-	}
-	// printf("token:%s\n", s);
-	if (!strcasecmp(s, "FONTBOUNDINGBOX")) {
-	    p = strtok(NULL, " \t\n\r");
-	    fontboundingbox_width = atoi(p);
-	    p = strtok(NULL, " \t\n\r");
-	    fontboundingbox_height = atoi(p);
-        p = strtok(NULL, " \t\n\r");
-        fontboundingbox_xoff = atoi(p);
-        p = strtok(NULL, " \t\n\r");
-        fontboundingbox_yoff = atoi(p);
-	} else if (!strcasecmp(s, "CHARS")) {
-	    p = strtok(NULL, " \t\n\r");
-	    chars = atoi(p);
-	    break;
-	}
+        if (!fgets(linebuf, sizeof(linebuf), bdf)) {	// EOF
+            break;
+        }
+
+        if (!(s = strtok(linebuf, " \t\n\r"))) {	// empty line
+            break;
+        }
+
+        // printf("token:%s\n", s);
+        if (!strcasecmp(s, "FONTBOUNDINGBOX")) {
+            p = strtok(NULL, " \t\n\r");
+            fontboundingbox_width = atoi(p);
+            p = strtok(NULL, " \t\n\r");
+            fontboundingbox_height = atoi(p);
+            p = strtok(NULL, " \t\n\r");
+            fontboundingbox_xoff = atoi(p);
+            p = strtok(NULL, " \t\n\r");
+            fontboundingbox_yoff = atoi(p);
+        } else if (!strcasecmp(s, "CHARS")) {
+            p = strtok(NULL, " \t\n\r");
+            chars = atoi(p);
+            break;
+        }
     }
     /*
        printf("%d * %dx%d\n", chars, fontboundingbox_width,
        fontboundingbox_height);
-     */
+       */
     //
     //	Some checks.
     //
     if (fontboundingbox_width <= 0 || fontboundingbox_height <= 0) {
-	fprintf(stderr, "Need to know the character size\n");
-	exit(-1);
+        fprintf(stderr, "Need to know the character size\n");
+        exit(-1);
     }
     if (chars <= 0) {
-	fprintf(stderr, "Need to know the number of characters\n");
-	exit(-1);
+        fprintf(stderr, "Need to know the number of characters\n");
+        exit(-1);
     }
     if (Outline) {			// Reserve space for outline border
-	fontboundingbox_width++;
-	fontboundingbox_height++;
+        fontboundingbox_width++;
+        fontboundingbox_height++;
     }
     //
     //	Allocate tables
     //
     width_table = malloc(chars * sizeof(*width_table));
     if (!width_table) {
-	fprintf(stderr, "Out of memory\n");
-	exit(-1);
+        fprintf(stderr, "Out of memory\n");
+        exit(-1);
     }
     encoding_table = malloc(chars * sizeof(*encoding_table));
     if (!encoding_table) {
-	fprintf(stderr, "Out of memory\n");
-	exit(-1);
+        fprintf(stderr, "Out of memory\n");
+        exit(-1);
     }
     /*	FIXME: needed for proportional fonts.
-       offset_table = malloc(chars * sizeof(*offset_table));
-       if (!offset_table) {
-       fprintf(stderr, "Out of memory\n");
-       exit(-1);
-       }
-     */
+        offset_table = malloc(chars * sizeof(*offset_table));
+        if (!offset_table) {
+        fprintf(stderr, "Out of memory\n");
+        exit(-1);
+        }
+        */
     bitmap =
-	malloc(((fontboundingbox_width + 7) / 8) * fontboundingbox_height);
+        malloc(((fontboundingbox_width + 7) / 8) * fontboundingbox_height);
     if (!bitmap) {
-	fprintf(stderr, "Out of memory\n");
-	exit(-1);
+        fprintf(stderr, "Out of memory\n");
+        exit(-1);
     }
 
     Header(out, name);
@@ -498,107 +502,105 @@ void ReadBdf(FILE * bdf, FILE * out, const char *name)
     width = INT_MIN;
     strcpy(charname, "unknown character");
     for (;;) {
-	if (!fgets(linebuf, sizeof(linebuf), bdf)) {	// EOF
-	    break;
-	}
-	if (!(s = strtok(linebuf, " \t\n\r"))) {	// empty line
-	    break;
-	}
-	// printf("token:%s\n", s);
-	if (!strcasecmp(s, "STARTCHAR")) {
-	    p = strtok(NULL, " \t\n\r");
-	    strcpy(charname, p);
-	} else if (!strcasecmp(s, "ENCODING")) {
-	    p = strtok(NULL, " \t\n\r");
-	    encoding = atoi(p);
-	} else if (!strcasecmp(s, "DWIDTH")) {
-	    p = strtok(NULL, " \t\n\r");
-	    width = atoi(p);
-	} else if (!strcasecmp(s, "BBX")) {
-	    p = strtok(NULL, " \t\n\r");
-	    bbw = atoi(p);
-	    p = strtok(NULL, " \t\n\r");
-	    bbh = atoi(p);
-	    p = strtok(NULL, " \t\n\r");
-	    bbx = atoi(p);
-	    p = strtok(NULL, " \t\n\r");
-	    bby = atoi(p);
-	} else if (!strcasecmp(s, "BITMAP")) {
-	    fprintf(out, "// %3d $%02x '%s'\n", encoding, encoding, charname);
-	    fprintf(out, "//\twidth %d, bbx %d, bby %d, bbw %d, bbh %d\n",
-		width, bbx, bby, bbw, bbh);
+        if (!fgets(linebuf, sizeof(linebuf), bdf)) {	// EOF
+            break;
+        }
+        if (!(s = strtok(linebuf, " \t\n\r"))) {	// empty line
+            break;
+        }
+        // printf("token:%s\n", s);
+        if (!strcasecmp(s, "STARTCHAR")) {
+            p = strtok(NULL, " \t\n\r");
+            strcpy(charname, p);
+        } else if (!strcasecmp(s, "ENCODING")) {
+            p = strtok(NULL, " \t\n\r");
+            encoding = atoi(p);
+        } else if (!strcasecmp(s, "DWIDTH")) {
+            p = strtok(NULL, " \t\n\r");
+            width = atoi(p);
+        } else if (!strcasecmp(s, "BBX")) {
+            p = strtok(NULL, " \t\n\r");
+            bbw = atoi(p);
+            p = strtok(NULL, " \t\n\r");
+            bbh = atoi(p);
+            p = strtok(NULL, " \t\n\r");
+            bbx = atoi(p);
+            p = strtok(NULL, " \t\n\r");
+            bby = atoi(p);
+        } else if (!strcasecmp(s, "BITMAP")) {
+            fprintf(out, "// %3d $%02x '%s'\n", encoding, encoding, charname);
+            fprintf(out, "//\twidth %d, bbx %d, bby %d, bbw %d, bbh %d\n",
+                    width, bbx, bby, bbw, bbh);
 
-	    if (n == chars) {
-		fprintf(stderr, "Too many bitmaps for characters\n");
-		exit(-1);
-	    }
-	    if (width == INT_MIN) {
-		fprintf(stderr, "character width not specified\n");
-		exit(-1);
-	    }
-	    //
-	    //	Adjust width based on bounding box
-	    //
-	    if (bbx < 0) {
-		width -= bbx;
-		bbx = 0;
-	    }
-	    if (bbx + bbw > width) {
-		width = bbx + bbw;
-	    }
-	    if (Outline) {		// Reserve space for outline border
-		++width;
-	    }
-	    width_table[n] = width;
-	    encoding_table[n] = encoding;
-	    ++n;
-	    if (Outline) {		// Leave first row empty
-		scanline = 1;
-	    } else {
-		scanline = 0;
-	    }
-	    memset(bitmap, 0,
-		((fontboundingbox_width + 7) / 8) * fontboundingbox_height);
-	} else if (!strcasecmp(s, "ENDCHAR")) {
-	    if (bbx) {
-		RotateBitmap(bitmap, bbx, fontboundingbox_width,
-		    fontboundingbox_height);
-	    }
-	    if (Outline) {
-		RotateBitmap(bitmap, 1, fontboundingbox_width,
-		    fontboundingbox_height);
-		OutlineCharacter(bitmap, fontboundingbox_width,
-		    fontboundingbox_height);
-	    }
-	    DumpCharacter(out, bitmap, fontboundingbox_width,
-		fontboundingbox_height, fontboundingbox_yoff, bbh, bby);
-	    scanline = -1;
-	    width = INT_MIN;
-	} else {
-	    if (scanline >= 0) {
-		p = s;
-		j = 0;
-		while (*p) {
-		    i = Hex2Int(p);
-		    ++p;
-		    if (*p) {
-			i = Hex2Int(p) | i * 16;
-		    } else {
-			bitmap[j + scanline * ((fontboundingbox_width +
-				    7) / 8)] = i;
-			break;
-		    }
-		    /* printf("%d = %d\n",
-		       j + scanline * ((fontboundingbox_width + 7)/8), i); */
-		    bitmap[j + scanline * ((fontboundingbox_width + 7) / 8)] =
-			i;
-		    ++j;
-		    ++p;
-		}
-		++scanline;
-	    }
-	}
-    }
+            if (n == chars) {
+                fprintf(stderr, "Too many bitmaps for characters\n");
+                exit(-1);
+            }
+            if (width == INT_MIN) {
+                fprintf(stderr, "character width not specified\n");
+                exit(-1);
+            }
+            //
+            //	Adjust width based on bounding box
+            //
+            if (bbx < 0) {
+                width -= bbx;
+                bbx = 0;
+            }
+            if (bbx + bbw > width) {
+                width = bbx + bbw;
+            }
+            if (Outline) {		// Reserve space for outline border
+                ++width;
+            }
+            width_table[n] = width;
+            encoding_table[n] = encoding;
+            ++n;
+            if (Outline) {		// Leave first row empty
+                scanline = 1;
+            } else {
+                scanline = 0;
+            }
+            memset(bitmap, 0,
+                    ((fontboundingbox_width + 7) / 8) * fontboundingbox_height);
+        } else if (!strcasecmp(s, "ENDCHAR")) {
+            if (bbx) {
+                RotateBitmap(bitmap, bbx, fontboundingbox_width,
+                        fontboundingbox_height);
+            }
+            if (Outline) {
+                RotateBitmap(bitmap, 1, fontboundingbox_width,
+                        fontboundingbox_height);
+                OutlineCharacter(bitmap, fontboundingbox_width,
+                        fontboundingbox_height);
+            }
+            DumpCharacter(out, bitmap, fontboundingbox_width,
+                    fontboundingbox_height, fontboundingbox_yoff, bbh, bby);
+            scanline = -1;
+            width = INT_MIN;
+        } else {
+            if (scanline >= 0) {
+                p = s;
+                j = 0;
+                while (*p) {
+                    i = Hex2Int(p);
+                    ++p;
+                    if (*p) {
+                        i = Hex2Int(p) | i * 16;
+                    } else {
+                        bitmap[j + scanline * ((fontboundingbox_width + 7) / 8)] = i;
+                        break;
+                    }
+                    /* printf("%d = %d\n",
+                       j + scanline * ((fontboundingbox_width + 7)/8), i); */
+                    bitmap[j + scanline * ((fontboundingbox_width + 7) / 8)] = i;
+                    ++j;
+                    ++p;
+                }
+                ++scanline;
+            }
+        }
+    }/* end for() */
 
     // Output width table for proportional font.
     if(!SmartMatrix)
@@ -654,60 +656,60 @@ int main(int argc, char *const argv[])
     //	Parse arguments.
     //
     for (;;) {
-	switch (getopt(argc, argv, "bcC:n:hOs?-")) {
-	    case 'b':			// bdf file name
-		ReadBdf(stdin, stdout, name);
-		continue;
-	    case 'c':			// create header file
-		CreateFontHeaderFile(stdout);
-		break;
-	    case 'C':			// create header file
-	    {
-		FILE *out;
+        switch (getopt(argc, argv, "bcC:n:hOs?-")) {
+            case 'b':			// bdf file name
+                ReadBdf(stdin, stdout, name);
+                continue;
+            case 'c':			// create header file
+                CreateFontHeaderFile(stdout);
+                break;
+            case 'C':			// create header file
+                {
+                    FILE *out;
 
-		if (!(out = fopen(optarg, "w"))) {
-		    fprintf(stderr, "Can't open file '%s': %s\n", optarg,
-			strerror(errno));
-		    exit(-1);
-		}
-		CreateFontHeaderFile(out);
-		fclose(out);
-	    }
-		continue;
-	    case 'n':
-		name = optarg;
-		continue;
-	    case 'O':
-		Outline = 1;
-		continue;
-        case 's':
-        SmartMatrix = 1;
-        continue;
+                    if (!(out = fopen(optarg, "w"))) {
+                        fprintf(stderr, "Can't open file '%s': %s\n", optarg,
+                                strerror(errno));
+                        exit(-1);
+                    }
+                    CreateFontHeaderFile(out);
+                    fclose(out);
+                }
+                continue;
+            case 'n':
+                name = optarg;
+                continue;
+            case 'O':
+                Outline = 1;
+                continue;
+            case 's':
+                SmartMatrix = 1;
+                continue;
 
-	    case EOF:
-		break;
-	    case '?':
-	    case 'h':			// help usage
-		PrintVersion();
-		PrintUsage();
-		exit(0);
-	    case '-':
-		fprintf(stderr, "We need no long options\n");
-		PrintUsage();
-		exit(-1);
-	    case ':':
-		PrintVersion();
-		fprintf(stderr, "Missing argument for option '%c'\n", optopt);
-		exit(-1);
-	    default:
-		PrintVersion();
-		fprintf(stderr, "Unkown option '%c'\n", optopt);
-		exit(-1);
-	}
-	break;
+            case EOF:
+                break;
+            case '?':
+            case 'h':			// help usage
+                PrintVersion();
+                PrintUsage();
+                exit(0);
+            case '-':
+                fprintf(stderr, "We need no long options\n");
+                PrintUsage();
+                exit(-1);
+            case ':':
+                PrintVersion();
+                fprintf(stderr, "Missing argument for option '%c'\n", optopt);
+                exit(-1);
+            default:
+                PrintVersion();
+                fprintf(stderr, "Unkown option '%c'\n", optopt);
+                exit(-1);
+        }
+        break;
     }
     while (optind < argc) {
-	fprintf(stderr, "Unhandled argument '%s'\n", argv[optind++]);
+        fprintf(stderr, "Unhandled argument '%s'\n", argv[optind++]);
     }
 
     return 0;

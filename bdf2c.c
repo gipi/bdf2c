@@ -83,9 +83,17 @@
 
 //////////////////////////////////////////////////////////////////////////////
 
+struct _options {
+    unsigned int n_chars;
+    unsigned int glyph_width;
+    unsigned int glyph_height;
+    unsigned int read_file;
+    unsigned int dump_header;
+    char* coe_output_file_name;
+    unsigned char** list_chars;  // this will contain all the chars ordered by encoding value
+} options;
 int Outline;				///< true generate outlined font
 int SmartMatrix;            // modify output to be used in the SmartMatrix library
-
 //////////////////////////////////////////////////////////////////////////////
 
 ///
@@ -215,6 +223,43 @@ void Footer(FILE * out, const char *name, int width, int height, int chars)
     fprintf(out, "};\n\n");
 }
 
+void DumpCOEByte(FILE* f, unsigned char byte) {
+    unsigned int cycle;
+
+    for (cycle = 0 ; cycle < 8 ; cycle++) {
+        fwrite(byte >> (7 - cycle) & 1 ? "1" : "0", 1, 1, f);
+        fwrite(",", 1, 1, f);
+    }
+    fwrite("\n", 1, 1, f);
+}
+
+/*
+ * Dump in a file the binary image of the font.
+ */
+void DumpCOEFile() {
+    FILE* f = fopen(options.coe_output_file_name, "w");
+
+    if (!f) {
+        perror("fopen");
+        exit(2);
+    }
+
+    char header[] = "memory_initialization_radix=2;\nmemory_initialization_vector=\n";
+
+    fwrite(header, strlen(header), 1, f);
+
+    unsigned int i;
+    unsigned int index;
+    unsigned int size = 16;
+
+    for (index = 0 ; index < 0x80 ; index++) {
+        unsigned char* glyph = options.list_chars[index];
+
+        for (i = 0 ; i < size ; i++) {
+            DumpCOEByte(f, glyph ? glyph[i] : 0x00);
+        }
+    }
+}
 ///
 ///	Dump character.
 ///
@@ -397,10 +442,9 @@ void ReadBdf(FILE * bdf, FILE * out, const char *name)
     int fontboundingbox_height;
     int fontboundingbox_xoff;
     int fontboundingbox_yoff;
-    int chars;
     int i;
     int j;
-    int n;
+    unsigned int n;
     int scanline;
     char charname[1024];
     int encoding;
@@ -417,7 +461,7 @@ void ReadBdf(FILE * bdf, FILE * out, const char *name)
     fontboundingbox_height = 0;
     fontboundingbox_xoff = 0;
     fontboundingbox_yoff = 0;
-    chars = 0;
+    options.n_chars = 0;
 
     for (;;) {
         if (!fgets(linebuf, sizeof(linebuf), bdf)) {	// EOF
@@ -440,14 +484,17 @@ void ReadBdf(FILE * bdf, FILE * out, const char *name)
             fontboundingbox_yoff = atoi(p);
         } else if (!strcasecmp(s, "CHARS")) {
             p = strtok(NULL, " \t\n\r");
-            chars = atoi(p);
+            options.n_chars = atoi(p);
             break;
         }
     }
-    /*
-       printf("%d * %dx%d\n", chars, fontboundingbox_width,
+    options.list_chars = (unsigned char**)malloc(sizeof(char*)*options.n_chars);
+    if (!options.list_chars) {
+        perror("malloc() list_chars");
+        exit(1);
+    }
+       fprintf(stderr, "%d * %dx%d\n", options.n_chars, fontboundingbox_width,
        fontboundingbox_height);
-       */
     //
     //	Some checks.
     //
@@ -455,7 +502,7 @@ void ReadBdf(FILE * bdf, FILE * out, const char *name)
         fprintf(stderr, "Need to know the character size\n");
         exit(-1);
     }
-    if (chars <= 0) {
+    if (options.n_chars <= 0) {
         fprintf(stderr, "Need to know the number of characters\n");
         exit(-1);
     }
@@ -466,12 +513,12 @@ void ReadBdf(FILE * bdf, FILE * out, const char *name)
     //
     //	Allocate tables
     //
-    width_table = malloc(chars * sizeof(*width_table));
+    width_table = malloc(options.n_chars * sizeof(*width_table));
     if (!width_table) {
         fprintf(stderr, "Out of memory\n");
         exit(-1);
     }
-    encoding_table = malloc(chars * sizeof(*encoding_table));
+    encoding_table = malloc(options.n_chars * sizeof(*encoding_table));
     if (!encoding_table) {
         fprintf(stderr, "Out of memory\n");
         exit(-1);
@@ -483,12 +530,17 @@ void ReadBdf(FILE * bdf, FILE * out, const char *name)
         exit(-1);
         }
         */
-    bitmap =
-        malloc(((fontboundingbox_width + 7) / 8) * fontboundingbox_height);
-    if (!bitmap) {
-        fprintf(stderr, "Out of memory\n");
-        exit(-1);
+    unsigned int glyph_width  = ((fontboundingbox_width + 7) / 8);
+    unsigned glyph_height =  fontboundingbox_height;
+
+    if (options.glyph_height && options.glyph_height != glyph_height) {
+        fprintf(stderr, "fatal: to dump in a binary the glyphs need to be of the same size!");
+        exit(3);
     }
+
+    options.glyph_width  = glyph_width;
+    options.glyph_height =  glyph_height;
+
 
     Header(out, name);
 
@@ -502,6 +554,11 @@ void ReadBdf(FILE * bdf, FILE * out, const char *name)
     width = INT_MIN;
     strcpy(charname, "unknown character");
     for (;;) {
+
+        if (!bitmap) {
+            fprintf(stderr, "Out of memory\n");
+            exit(-1);
+        }
         if (!fgets(linebuf, sizeof(linebuf), bdf)) {	// EOF
             break;
         }
@@ -512,9 +569,14 @@ void ReadBdf(FILE * bdf, FILE * out, const char *name)
         if (!strcasecmp(s, "STARTCHAR")) {
             p = strtok(NULL, " \t\n\r");
             strcpy(charname, p);
+            bitmap = malloc(options.glyph_width*options.glyph_height);
+            memset(bitmap, 0,
+                    ((fontboundingbox_width + 7) / 8) * fontboundingbox_height);
         } else if (!strcasecmp(s, "ENCODING")) {
             p = strtok(NULL, " \t\n\r");
             encoding = atoi(p);
+            if (encoding < 0x7f)
+                options.list_chars[encoding] = bitmap;
         } else if (!strcasecmp(s, "DWIDTH")) {
             p = strtok(NULL, " \t\n\r");
             width = atoi(p);
@@ -532,7 +594,7 @@ void ReadBdf(FILE * bdf, FILE * out, const char *name)
             fprintf(out, "//\twidth %d, bbx %d, bby %d, bbw %d, bbh %d\n",
                     width, bbx, bby, bbw, bbh);
 
-            if (n == chars) {
+            if (n == options.n_chars) {
                 fprintf(stderr, "Too many bitmaps for characters\n");
                 exit(-1);
             }
@@ -561,8 +623,6 @@ void ReadBdf(FILE * bdf, FILE * out, const char *name)
             } else {
                 scanline = 0;
             }
-            memset(bitmap, 0,
-                    ((fontboundingbox_width + 7) / 8) * fontboundingbox_height);
         } else if (!strcasecmp(s, "ENDCHAR")) {
             if (bbx) {
                 RotateBitmap(bitmap, bbx, fontboundingbox_width,
@@ -604,13 +664,13 @@ void ReadBdf(FILE * bdf, FILE * out, const char *name)
 
     // Output width table for proportional font.
     if(!SmartMatrix)
-        WidthTable(out, name, width_table, chars);
+        WidthTable(out, name, width_table, options.n_chars);
     // FIXME: Output offset table for proportional font.
     // OffsetTable(out, name, offset_table, chars);
     // Output encoding table for utf-8 support
-    EncodingTable(out, name, encoding_table, chars);
+    EncodingTable(out, name, encoding_table, options.n_chars);
 
-    Footer(out, name, fontboundingbox_width, fontboundingbox_height, chars);
+    Footer(out, name, fontboundingbox_width, fontboundingbox_height, options.n_chars);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -635,10 +695,12 @@ void PrintUsage(void)
 	"\t-b\tRead bdf file from stdin, write to stdout\n"
 	"\t-c\tCreate font header on stdout\n"
 	"\t-C file\tCreate font header file\n"
+	"\t-z file\tCreate COE memory initialization file\n"
 	"\t-n name\tName of c font variable (place it before -b)\n"
 	"\t-O\tCreate outline for the font.\n");
     printf("\n\tOnly idiots print usage on stderr\n");
 }
+
 
 ///
 ///	Main test program for bdf2c.
@@ -647,8 +709,7 @@ void PrintUsage(void)
 ///	@param argc	number of arguments
 ///	@param argv	arguments vector
 ///
-int main(int argc, char *const argv[])
-{
+int main(int argc, char *const argv[]) {
     const char *name;
 
     name = "font";			// default variable name
@@ -656,9 +717,9 @@ int main(int argc, char *const argv[])
     //	Parse arguments.
     //
     for (;;) {
-        switch (getopt(argc, argv, "bcC:n:hOs?-")) {
+        switch (getopt(argc, argv, "z:bcC:n:hOs?-")) {
             case 'b':			// bdf file name
-                ReadBdf(stdin, stdout, name);
+                options.read_file = 1;
                 continue;
             case 'c':			// create header file
                 CreateFontHeaderFile(stdout);
@@ -685,7 +746,9 @@ int main(int argc, char *const argv[])
             case 's':
                 SmartMatrix = 1;
                 continue;
-
+            case 'z':
+                options.coe_output_file_name = strdup(optarg);
+                continue;
             case EOF:
                 break;
             case '?':
@@ -710,6 +773,13 @@ int main(int argc, char *const argv[])
     }
     while (optind < argc) {
         fprintf(stderr, "Unhandled argument '%s'\n", argv[optind++]);
+    }
+    if (options.read_file) {
+        ReadBdf(stdin, stdout, name);
+    }
+
+    if (options.coe_output_file_name) {
+        DumpCOEFile();
     }
 
     return 0;

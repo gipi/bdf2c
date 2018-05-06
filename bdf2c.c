@@ -515,12 +515,12 @@ void ReadBdf(FILE * bdf, FILE * out, const char *name)
     //
     width_table = malloc(options.n_chars * sizeof(*width_table));
     if (!width_table) {
-        fprintf(stderr, "Out of memory\n");
+        fprintf(stderr, "Out of memory at %d\n", __LINE__);
         exit(-1);
     }
     encoding_table = malloc(options.n_chars * sizeof(*encoding_table));
     if (!encoding_table) {
-        fprintf(stderr, "Out of memory\n");
+        fprintf(stderr, "Out of memory at %d\n", __LINE__);
         exit(-1);
     }
     /*	FIXME: needed for proportional fonts.

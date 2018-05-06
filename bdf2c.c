@@ -555,10 +555,6 @@ void ReadBdf(FILE * bdf, FILE * out, const char *name)
     strcpy(charname, "unknown character");
     for (;;) {
 
-        if (!bitmap) {
-            fprintf(stderr, "Out of memory\n");
-            exit(-1);
-        }
         if (!fgets(linebuf, sizeof(linebuf), bdf)) {	// EOF
             break;
         }
@@ -572,6 +568,10 @@ void ReadBdf(FILE * bdf, FILE * out, const char *name)
             bitmap = malloc(options.glyph_width*options.glyph_height);
             memset(bitmap, 0,
                     ((fontboundingbox_width + 7) / 8) * fontboundingbox_height);
+            if (!bitmap) {
+                fprintf(stderr, "Out of memory at %d\n", __LINE__);
+                exit(-1);
+            }
         } else if (!strcasecmp(s, "ENCODING")) {
             p = strtok(NULL, " \t\n\r");
             encoding = atoi(p);
